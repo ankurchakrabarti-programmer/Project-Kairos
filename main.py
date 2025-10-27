@@ -13,42 +13,43 @@ tavily_key = os.getenv("TAVILY_API_KEY")
 
 # Set the GOOGLE_API_KEY environment variable for CrewAI/LiteLLM
 os.environ["GOOGLE_API_KEY"] = gemini_key
+os.environ["TAVILY_API_KEY"] = tavily_key
 
-# --- THIS IS THE FIX ---
-# Set the model names
-GENERATION_MODEL_NAME = "gemini/gemini-2.5-flash" 
-# --- END OF FIX ---
-
-# --- 2. DEFINE THE "TOOLS" ---
-tavily_tool = TavilySearchTool(api_key=tavily_key, max_results=5)
-# memory_tool is imported from kairos_tools.py (already initialized)
-
-# --- 3. DEFINE THE "AGENTS" (Loading from .env) ---
-researcher = Agent(
-    role=os.getenv("RESEARCHER_ROLE"),
-    goal=os.getenv("RESEARCHER_GOAL"),
-    backstory=os.getenv("RESEARCHER_BACKSTORY"),
-    verbose=True,
-    allow_delegation=False,
-    tools=[tavily_tool, memory_tool],
-    llm=GENERATION_MODEL_NAME
-)
-
-strategist = Agent(
-    role=os.getenv("STRATEGIST_ROLE"),
-    goal=os.getenv("STRATEGIST_GOAL"),
-    backstory=os.getenv("STRATEGIST_BACKSTORY"),
-    verbose=True,
-    allow_delegation=False,
-    llm=GENERATION_MODEL_NAME
-)
-
-# --- 4. DEFINE THE CALLABLE FUNCTION ---
+# --- 2. DEFINE THE CALLABLE FUNCTION ---
 def run_kairos_crew(topic: str) -> str:
     """
     Runs the Kairos Crew for a given topic and returns the raw
     Markdown report.
     """
+
+    # --- THIS IS THE FIX ---
+    # Initialize all tools and agents INSIDE the function.
+    # This ensures they are created only when the function is called,
+    # by which time all Hugging Face secrets are loaded.
+    
+    GENERATION_MODEL_NAME = "gemini/gemini-2.5-flash" 
+
+    tavily_tool = TavilySearchTool(api_key=tavily_key, max_results=5)
+    
+    # --- DEFINE THE "AGENTS" ---
+    researcher = Agent(
+        role=os.getenv("RESEARCHER_ROLE"),
+        goal=os.getenv("RESEARCHER_GOAL"),
+        backstory=os.getenv("RESEARCHER_BACKSTORY"),
+        verbose=True,
+        allow_delegation=False,
+        tools=[tavily_tool, memory_tool],
+        llm=GENERATION_MODEL_NAME
+    )
+
+    strategist = Agent(
+        role=os.getenv("STRATEGIST_ROLE"),
+        goal=os.getenv("STRATEGIST_GOAL"),
+        backstory=os.getenv("STRATEGIST_BACKSTORY"),
+        verbose=True,
+        allow_delegation=False,
+        llm=GENERATION_MODEL_NAME
+    )
     
     # --- Define Tasks ---
     research_task = Task(
@@ -97,17 +98,22 @@ def run_kairos_crew(topic: str) -> str:
         
         final_report = result.raw if hasattr(result, 'raw') else str(result)
 
-        # --- Save Output to File ---
+        # --- Save Output to File (optional on server, but good practice) ---
         safe_topic = "".join(c if c.isalnum() else "_" for c in topic)[:50]
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         filename = f"Kairos_Report_{safe_topic}_{timestamp}.md"
         
-        with open(filename, 'w', encoding='utf-8') as f:
-            f.write(f"# Kairos Insight Report: {topic}\n\n")
-            f.write(f"Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n")
-            f.write("---\n\n")
-            f.write(final_report)
-        print(f"✅ Report successfully saved to: {filename}")
+        try:
+            with open(filename, 'w', encoding='utf-8') as f:
+                f.write(f"# Kairos Insight Report: {topic}\n\n")
+                f.write(f"Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n")
+                f.write("---\n\n")
+                f.write(final_report)
+            print(f"✅ Report successfully saved to: {filename}")
+        except Exception as e:
+            # Don't crash the app if file save fails (e.g., read-only filesystem)
+            print(f"⚠️ WARNING: Failed to save report to file. {e}")
+
 
         return final_report # Return the raw string
             
@@ -116,10 +122,10 @@ def run_kairos_crew(topic: str) -> str:
         print(f"Details: {e}")
         return f"An error occurred while running the analysis: {e}"
 
-# --- 5. MAIN EXECUTION (for command-line testing) ---
+# --- 3. MAIN EXECUTION (for command-line testing) ---
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Run the Kairos Crew to analyze a topic.")
-    parser.add_argument("topic", help="The topic for the crew to research and analyze.")
+    parser.add_argument("topic", nargs='?', default="Latest trends in Generative AI for education", help="The topic for the crew to research and analyze.")
     args = parser.parse_args()
     
     final_report = run_kairos_crew(args.topic)

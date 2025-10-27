@@ -7,13 +7,13 @@ from datetime import datetime
 # Import your two powerful crew "engines"
 try:
     from main import run_kairos_crew as run_blue_ocean_crew
-except ImportError:
-    st.error("FATAL ERROR: main.py not found or 'run_kairos_crew' function is missing.")
+except ImportError as e: # --- THIS IS THE FIX ---
+    st.error(f"FATAL ERROR ON 'main.py' IMPORT: {e}")
     st.stop()
 try:
     from dashboard_crew import run_kairos_crew as run_diligence_crew
-except ImportError:
-    st.error("FATAL ERROR: dashboard_crew.py not found or 'run_kairos_crew' function is missing.")
+except ImportError as e: # --- THIS IS THE FIX ---
+    st.error(f"FATAL ERROR ON 'dashboard_crew.py' IMPORT: {e}")
     st.stop()
 
 
@@ -67,10 +67,17 @@ st.markdown("""
     /* FIX for text overlap (from your screenshots) */
     div[data-testid="stMarkdown"] {
         word-wrap: break-word; /* Ensures long text wraps */
+        overflow-wrap: break-word; /* A more modern property */
     }
     /* Target specific classes for info/warning/error boxes to fix wrap */
     .st-emotion-cache-gh2jqd, .st-emotion-cache-eqpbba, .st-emotion-cache-zw513S, .st-emotion-cache-1wmy9hl { 
         word-wrap: break-word;
+        overflow-wrap: break-word;
+    }
+    /* Catch-all for any other Streamlit containers */
+    div[class*="st-"] {
+        word-wrap: break-word;
+        overflow-wrap: break-word;
     }
     </style>
     """, unsafe_allow_html=True)
@@ -163,11 +170,8 @@ with tab2:
                 "You can also run it manually to generate your first bulletin: "
                 "`python newsletter_crew.py`")
     else:
-        # --- FIX: Removed the st.info() message as requested ---
         latest_file = bulletin_files[0]
         
         # Display the most recent bulletin by default
         with open(latest_file, 'r', encoding='utf-8') as f:
             st.markdown(f.read())
-        
-        # --- FIX: Removed the st.expander() as requested ---

@@ -1,6 +1,7 @@
 streamlit
 pandas
 crewai[google-genai]
+google-generativeai
 crewai-tools
 python-dotenv
 chromadb

@@ -10,7 +10,6 @@ os.environ["GOOGLE_API_KEY"] = os.getenv("GEMINI_API_KEY")
 os.environ["TAVILY_API_KEY"] = os.getenv("TAVILY_API_KEY") 
 
 # --- 2. DEFINE THE DILIGENCE TASKS (Helper Function) ---
-# We make this a helper function that *takes agents* as arguments
 def create_diligence_tasks(business_idea, market_analyst, financial_analyst, risk_analyst, investment_advisor):
     
     market_analysis_task = Task(

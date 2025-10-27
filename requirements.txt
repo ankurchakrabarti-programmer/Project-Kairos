@@ -1,0 +1,15 @@
+streamlit
+pandas
+crewai
+crewai-tools
+python-dotenv
+google-generativeai
+chromadb
+arxiv
+python-dateutil
+newsapi-python
+google-patent-scraper
+sec-api
+alpha_vantage
+pytz
+html5lib

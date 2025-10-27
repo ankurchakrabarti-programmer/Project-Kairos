@@ -1,0 +1,34 @@
+# Python cache
+__pycache__/
+*.pyc
+
+# Environment variables
+.env
+
+# Virtual Environment
+EarlyStageVCvenv/
+
+# Local Vector Database
+kairos_db/
+
+# VS Code settings
+.vscode/
+
+# --- NEW: Ignore all Python system files at the root ---
+# Ignore folders
+DLLs/
+Doc/
+include/
+Lib/
+libs/
+Scripts/
+tcl/
+
+# Ignore specific root files
+*.exe
+*.dll
+*.pyd
+*.lib
+*.cat
+LICENSE.txt
+NEWS.txt

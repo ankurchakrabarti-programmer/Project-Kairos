@@ -122,7 +122,7 @@ def create_newsletter_crew(run_hours=24):
 # --- 7. KICK OFF THE AUTONOMOUS RUN ---
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser..add_argument("--hours", type=int, default=24, help="The lookback period in hours.")
+    parser.add_argument("--hours", type=int, default=24, help="The lookback period in hours.")
     args = parser.parse_args()
 
     print(f"🚀 Starting Autonomous Kairos Bulletin Run... (Lookback: {args.hours} hours)")

@@ -83,7 +83,7 @@ st.markdown("""
     """, unsafe_allow_html=True)
 
 # --- 3. PAGE TITLE & TABS ---
-st.title("Project Kairos")
+st.title("Kairos AI Platform")
 st.subheader("Autonomous Strategic Analysis & Diligence Platform")
 
 tab1, tab2 = st.tabs(["📊 Diligence Co-Pilot", "📰 Kairos Bulletin"])

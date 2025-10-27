@@ -12,6 +12,7 @@ try:
     import pytz
 except ImportError:
     print("pytz library not found. Installing...")
+    # This block ensures pytz is installed if it's missing
     subprocess.check_call([sys.executable, "-m", "pip", "install", "pytz"])
     import pytz
 
@@ -32,21 +33,31 @@ except Exception as e:
     print(f"❌ ERROR: Failed to connect to ChromaDB. {e}")
     exit()
 
-# --- 4. DEFINE THE AUTONOMOUS AGENTS (Loading from .env) ---
+# --- 4. DEFINE THE AUTONOMOUS AGENTS ---
 signal_agent = Agent(
-    role=os.getenv("SIGNAL_ANALYST_ROLE"),
-    goal=os.getenv("SIGNAL_ANALYST_GOAL"),
-    backstory=os.getenv("SIGNAL_ANALYST_BACKSTORY"),
+    role='Lead Intelligence Analyst',
+    goal='Identify the most significant and strategically relevant new pieces of information added to the knowledge base in the last 24 hours.',
+    backstory=(
+        "You are the first line of analysis for a top-tier VC firm. "
+        "Your expertise is in rapidly scanning large volumes of new data "
+        "(patents, news, filings) and identifying the 1-3 'signals' that "
+        "truly matter for strategic investment decisions. You ignore noise and "
+        "focus exclusively on impactful, non-obvious developments."
+    ),
     verbose=True,
     allow_delegation=False,
     llm=GENERATION_MODEL_NAME
 )
 
 strategist_agent = Agent(
-    # Re-using the same professional prompt from main.py
-    role=os.getenv("STRATEGIST_ROLE"),
-    goal=os.getenv("STRATEGIST_GOAL"),
-    backstory=os.getenv("STRATEGIST_BACKSTORY"),
+    role='Lead VC Strategist & Blue Ocean Expert',
+    goal='Synthesize the identified signals into a compelling, forward-looking "Kairos Insights Bulletin" for the firm\'s partners.',
+    backstory=(
+        "You are the star analyst at the firm, known for your ability "
+        "to see the second and third-order implications of new developments. "
+        "You take the critical signals identified by your team and weave them "
+        "into a narrative of emerging threats and Blue Ocean opportunities."
+    ),
     verbose=True,
     allow_delegation=False,
     llm=GENERATION_MODEL_NAME
@@ -58,6 +69,7 @@ def get_recent_memories(hours=24):
     Queries ChromaDB for documents added in the last X hours.
     """
     try:
+        # Use UTC for reliable comparison
         utc = pytz.UTC
         now = datetime.now(utc)
         cutoff_time = now - timedelta(hours=hours)
@@ -70,14 +82,17 @@ def get_recent_memories(hours=24):
                 continue
             
             try:
+                # Try parsing full ISO 8601 format (e.g., from newsapi)
                 published_date = datetime.fromisoformat(meta['published'].replace('Z', '+00:00'))
             except (ValueError, TypeError):
                 try:
+                    # Try parsing just the date (e.g., from sec harvester)
                     published_date = datetime.strptime(meta['published'], '%Y-%m-%d')
-                    published_date = published_date.replace(tzinfo=utc) 
+                    published_date = published_date.replace(tzinfo=utc) # Assume UTC
                 except (ValueError, TypeError):
-                    continue 
+                    continue # Skip if format is still wrong
             
+            # Ensure cutoff is timezone-aware for comparison
             if published_date > cutoff_time:
                 doc_id = all_items['ids'][i]
                 doc_content = collection.get(ids=[doc_id], include=["documents"])['documents'][0]
@@ -96,18 +111,23 @@ def get_recent_memories(hours=24):
 def create_newsletter_crew(run_hours=24):
     """Creates a crew designed to run for a specific lookback period."""
     
+    # We still get the date, but only for the filename and logging
     ist = pytz.timezone('Asia/Kolkata')
     current_date_str = datetime.now(ist).strftime('%B %d, %Y')
     
+    # Task 1: Find the Signals
     signal_task = Task(
       description=f"Analyze the following new data ingested in the last {run_hours} hours. Identify the top 1-3 most strategically significant signals. A signal is a piece of information that suggests a new market trend, a competitive threat, a technological breakthrough, or a major policy shift.\n\nNewly Ingested Data:\n---\n{get_recent_memories(hours=run_hours)}",
       expected_output="A numbered list of the 1-3 most important signals, each with a brief explanation of why it is strategically significant. If the input is 'No new significant information has been added...', state that clearly.",
       agent=signal_agent
     )
 
+    # Task 2: Write the Bulletin
+    # --- THIS IS THE FIX ---
+    # The agent is now told NOT to add a title or date.
     strategy_task = Task(
-      description=f"Using the list of significant signals provided, synthesize them into a concise, insightful 'Kairos Insights Bulletin'. The bulletin MUST be dated **{current_date_str}**. If no significant signals were found, write a brief 'Forward Posture' memo stating that no new signals were detected and outlining the team's ongoing strategic focus, and still date it **{current_date_str}**.",
-      expected_output=f"A professionally formatted Markdown document titled 'Kairos Insights Bulletin' and explicitly dated with **{current_date_str}**.",
+      description=f"Using the list of significant signals provided, synthesize them into a concise, insightful 'Kairos Insights Bulletin'. If no significant signals were found, write a brief 'Forward Posture' memo stating that no new signals were detected and outlining the team's ongoing strategic focus. **DO NOT include a title or a date.** Start directly with the 'Executive Summary' or the 'Forward Posture' memo.",
+      expected_output="The full, complete body of the bulletin in Markdown format, starting *directly* with '## Executive Summary' or '## Forward Posture'.",
       agent=strategist_agent,
       context=[signal_task]
     )
@@ -132,8 +152,11 @@ if __name__ == "__main__":
     
     print("\n\n===== KAIROS BULLETIN GENERATION COMPLETE =====")
     
+    # This is now just the raw body of the report
     final_report_body = result.raw if hasattr(result, 'raw') else str(result)
     
+    # --- THIS IS THE FIX ---
+    # We now manually create the *full* report content, ensuring only ONE title and date.
     ist = pytz.timezone('Asia/Kolkata')
     current_date_str = datetime.now(ist).strftime('%B %d, %Y')
     
@@ -144,6 +167,7 @@ if __name__ == "__main__":
         f"{final_report_body}"
     )
     
+    # Use today's date for the filename
     timestamp = datetime.now().strftime("%Y%m%d")
     filename = f"Kairos_Bulletin_{timestamp}.md"
     
